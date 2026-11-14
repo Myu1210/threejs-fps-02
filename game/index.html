@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SABLE YARD — Tactical FPS</title>
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0b0e13;
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:#e8ecf1;
+    -webkit-user-select:none;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas.webgl{display:block;width:100%;height:100%}
+  .hidden{display:none !important}
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+  #crosshair{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
+  #crosshair .l{position:absolute;background:#e8ecf1;box-shadow:0 0 2px #000}
+  #crosshair .t{left:10px;top:0;width:2px;height:7px}
+  #crosshair .b{left:10px;bottom:0;width:2px;height:7px}
+  #crosshair .lf{left:0;top:10px;width:7px;height:2px}
+  #crosshair .rt{right:0;top:10px;width:7px;height:2px}
+  #crosshair .dot{left:10px;top:10px;width:2px;height:2px}
+  #hitmark{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;opacity:0}
+  #hitmark .l{position:absolute;width:8px;height:2px;background:#ffcf3d;box-shadow:0 0 3px #000}
+  #hitmark .a{left:0;top:0;transform:rotate(45deg)}
+  #hitmark .b{right:0;top:0;transform:rotate(-45deg)}
+  #hitmark .c{left:0;bottom:0;transform:rotate(-45deg)}
+  #hitmark .d{right:0;bottom:0;transform:rotate(45deg)}
+  #hitmark.kill .l{background:#ff4d3d}
+  #topbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);text-align:center}
+  #timer{font-size:26px;font-weight:700;letter-spacing:2px;text-shadow:0 2px 4px #000}
+  #timer.low{color:#ff5d4d}
+  #score{font-size:15px;font-weight:600;letter-spacing:1px;text-shadow:0 2px 4px #000}
+  #score .v{color:#6db7ff}#score .c{color:#ff7a6b}
+  #objective{font-size:12px;letter-spacing:2px;opacity:.9;text-shadow:0 2px 4px #000;margin-top:2px}
+  #objective .hot{color:#ffd23d;font-weight:700}
+  #minimap{position:absolute;top:12px;right:12px;border:2px solid rgba(255,255,255,.25);
+    border-radius:4px;background:rgba(8,12,16,.72)}
+  #teamcount{position:absolute;top:12px;left:12px;font-size:13px;line-height:1.7;
+    text-shadow:0 1px 3px #000;background:rgba(8,12,16,.55);padding:6px 10px;border-radius:4px}
+  #teamcount .v{color:#6db7ff;font-weight:700}#teamcount .c{color:#ff7a6b;font-weight:700}
+  #killfeed{position:absolute;top:150px;right:12px;text-align:right;font-size:13px;line-height:1.9;
+    text-shadow:0 1px 3px #000}
+  #killfeed .v{color:#6db7ff}#killfeed .c{color:#ff7a6b}#killfeed .w{color:#c8ccd4}
+  #bottomleft{position:absolute;left:16px;bottom:14px;text-shadow:0 2px 4px #000}
+  #health{font-size:34px;font-weight:800;line-height:1}
+  #health.low{color:#ff5d4d}
+  #armor{font-size:14px;color:#9fd8ff;margin-top:4px}
+  #money{font-size:15px;color:#8fe08a;margin-top:2px;font-weight:600}
+  #bottomright{position:absolute;right:16px;bottom:14px;text-align:right;text-shadow:0 2px 4px #000}
+  #ammo{font-size:34px;font-weight:800;line-height:1}
+  #ammo .res{font-size:16px;color:#aab2bd;font-weight:600}
+  #weaponname{font-size:14px;color:#d5dae2;margin-top:4px}
+  #firemode{font-size:12px;color:#9aa3af}
+  #hint{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);font-size:14px;
+    text-shadow:0 2px 4px #000;background:rgba(8,12,16,.6);padding:6px 12px;border-radius:4px}
+  #banner{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);text-align:center;
+    text-shadow:0 3px 8px #000}
+  #banner .big{font-size:44px;font-weight:800;letter-spacing:3px}
+  #banner .sub{font-size:16px;margin-top:6px;color:#d5dae2}
+  #dmg{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(255,30,20,.55) 100%)}
+  #plantbar{position:absolute;left:50%;bottom:170px;transform:translateX(-50%);width:260px;
+    text-align:center;font-size:13px;text-shadow:0 2px 4px #000}
+  #plantbar .track{height:8px;background:rgba(255,255,255,.25);border-radius:4px;margin-top:4px;overflow:hidden}
+  #plantbar .fill{height:100%;width:0%;background:#ffd23d}
+  #reload{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:13px;
+    letter-spacing:2px;color:#ffd23d;text-shadow:0 2px 4px #000}
+  /* ---------- overlays ---------- */
+  .overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+    background:rgba(5,8,12,.82);backdrop-filter:blur(3px)}
+  .panel{width:min(680px,92vw);max-height:92vh;overflow:auto;background:#12161d;border:1px solid #2a323d;
+    border-radius:10px;padding:28px 32px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .panel h1{margin:0 0 4px;font-size:34px;letter-spacing:4px}
+  .panel h1 .y{color:#ffd23d}
+  .panel h2{margin:0 0 14px;font-size:18px;color:#9fb4c8;font-weight:600;letter-spacing:1px}
+  .panel p{font-size:14px;line-height:1.65;color:#c6cdd6;margin:8px 0}
+  .panel .keys{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;font-size:13px;margin:14px 0}
+  .panel .keys b{color:#ffd23d;font-family:Consolas,monospace}
+  .btn{display:inline-block;margin-top:14px;padding:12px 26px;font-size:16px;font-weight:700;letter-spacing:1px;
+    color:#0b0e13;background:#ffd23d;border:0;border-radius:6px;cursor:pointer}
+  .btn:hover{background:#ffe06a}
+  .btn.ghost{background:transparent;color:#e8ecf1;border:1px solid #4a5563;margin-left:10px}
+  /* buy menu */
+  #buy .panel{width:min(760px,94vw)}
+  .shop{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .item{display:flex;justify-content:space-between;align-items:center;background:#1a2029;
+    border:1px solid #2a323d;border-radius:6px;padding:10px 12px;cursor:pointer;font-size:14px}
+  .item:hover{border-color:#ffd23d}
+  .item.owned{border-color:#4caf6d}
+  .item.cant{opacity:.45;cursor:default}
+  .item .price{color:#8fe08a;font-weight:700}
+  .item small{display:block;color:#9aa3af;font-size:12px}
+  #buyfoot{margin-top:12px;font-size:13px;color:#9aa3af}
+  #buyfoot b{color:#8fe08a}
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="hud" class="hidden">
+  <div id="crosshair"><div class="l t"></div><div class="l b"></div><div class="l lf"></div><div class="l rt"></div><div class="l dot"></div></div>
+  <div id="hitmark"><div class="l a"></div><div class="l b"></div><div class="l c"></div><div class="l d"></div></div>
+  <div id="topbar">
+    <div id="timer">1:40</div>
+    <div id="score"><span class="v">VANGUARD 0</span> &nbsp;—&nbsp; <span class="c">0 CRIMSON</span></div>
+    <div id="objective">DEFEND BOTH SITES</div>
+  </div>
+  <canvas id="minimap" width="168" height="126"></canvas>
+  <div id="teamcount"></div>
+  <div id="killfeed"></div>
+  <div id="bottomleft"><div id="health">100</div><div id="armor"></div><div id="money">$800</div></div>
+  <div id="bottomright"><div id="ammo">12 <span class="res">/ 36</span></div><div id="weaponname">DUNE-9</div><div id="firemode">SEMI · [1] PRIMARY · [2] SIDEARM · [G] FRAG · [5] SMOKE</div></div>
+  <div id="hint" class="hidden"></div>
+  <div id="plantbar" class="hidden"><div id="plantlabel">PLANTING SPIKE…</div><div class="track"><div class="fill" id="plantfill"></div></div></div>
+  <div id="reload" class="hidden">RELOADING…</div>
+  <div id="banner" class="hidden"><div class="big" id="bannerbig"></div><div class="sub" id="bannersub"></div></div>
+</div>
+<div id="dmg"></div>
+
+<div id="menu" class="overlay">
+  <div class="panel">
+    <h1>SABLE <span class="y">YARD</span></h1>
+    <h2>A TACTICAL ROUND-BASED FPS · THREE.JS</h2>
+    <p><b>Vanguard</b> (you + 2 squad bots) vs <b>Crimson</b> (4 bots). First team to <b>5 rounds</b> takes the match.
+    Win a round by eliminating the enemy team — or play the objective: Crimson carries the <b>data spike</b>
+    and will try to plant it at <b>Site A</b> (west yard) or <b>Site B</b> (east warehouse). If it plants, hold the
+    site for 35 seconds and it detonates. Defuse it (hold <b>E</b> beside it) or stop the plant to win the round.</p>
+    <p>Earn money for kills and round wins, then press <b>B</b> during the buy phase to buy rifles, armour and grenades.
+    Stop, crouch and aim — firing on the move sprays wide, and headshots pay double.</p>
+    <div class="keys">
+      <div><b>W A S D</b> — move</div><div><b>Mouse</b> — aim (click to lock)</div>
+      <div><b>Shift</b> — sprint</div><div><b>Ctrl / C</b> — crouch</div>
+      <div><b>Space</b> — jump</div><div><b>Left click</b> — fire · <b>Right click</b> — aim</div>
+      <div><b>R</b> — reload</div><div><b>1 / 2</b> — primary / sidearm</div>
+      <div><b>G</b> — throw frag</div><div><b>5</b> — throw smoke</div>
+      <div><b>B</b> — buy menu</div><div><b>E</b> — plant / defuse spike</div>
+    </div>
+    <p style="color:#8fa3b8">Original map, art and sound — no assets from any commercial game. Best in desktop Chrome with WebGL 2. Sound is synthesised live; nothing is downloaded.</p>
+    <button class="btn" id="playbtn">CLICK TO DEPLOY</button>
+    <button class="btn ghost" id="howbtn">HOW TO WIN</button>
+    <p id="howto" class="hidden" style="color:#ffd23d">Hold angles, not hallways. Crimson pushes one site per round — listen for the spike beeps, rotate through Mid, and never peek the same corner twice. Buy the Longbow-7 on round 2 if you won round 1; save if you lost.</p>
+  </div>
+</div>
+
+<div id="buy" class="overlay hidden">
+  <div class="panel">
+    <h2>BUY PHASE — <span id="buymoney" style="color:#8fe08a">$800</span> &nbsp;·&nbsp; <span id="buytimer">20s</span></h2>
+    <div class="shop" id="shop"></div>
+    <div id="buyfoot">Press <b>B</b> or <b>Esc</b> to close. Armour halves damage. Frag clears a site; smoke blocks sightlines for 12s.</div>
+  </div>
+</div>
+
+<div id="end" class="overlay hidden">
+  <div class="panel" style="text-align:center">
+    <h1 id="endtitle">VICTORY</h1>
+    <h2 id="endsub"></h2>
+    <p id="endstats"></p>
+    <button class="btn" id="againbtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
